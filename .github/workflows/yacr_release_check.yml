@@ -1,7 +1,7 @@
 name: YACR Release Check
 on:
   schedule:
-    - cron:  '14 14 * * *'
+    - cron:  '14 14 14 * *'
   workflow_dispatch:
 
 jobs:

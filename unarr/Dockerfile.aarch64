@@ -32,7 +32,6 @@ RUN \
        qt6-image-formats-plugins \
        libqt6opengl6-dev \
        libqt6sql6-sqlite \
-       libunarr-dev \
        libgl-dev \
        libglu1-mesa-dev \
        libbz2-dev \
@@ -43,6 +42,18 @@ RUN \
        p7zip-full \
        unzip \
        wget && \
+# build unarr from source
+# Ubuntu dropped the libunarr-dev package in 25.04+, so we compile it ourselves.
+# This installs libunarr.so + libunarr.pc to /usr/local, which YACReader's
+# cmake/Findunarr.cmake locates via pkg-config.
+    git clone --depth 1 --single-branch \
+       https://github.com/selmf/unarr.git /tmp/unarr && \
+    cmake -S /tmp/unarr -B /tmp/unarr/build \
+       -DCMAKE_BUILD_TYPE=Release \
+       -DENABLE_7Z=ON && \
+    cmake --build /tmp/unarr/build --parallel && \
+    cmake --install /tmp/unarr/build && \
+    ldconfig && \
 # build yacreaderlibraryserver
 # YACReader 10.x switched from qmake to CMake and requires Qt >= 6.4 for the
 # standalone server (Qt 6.7+ for the full GUI build). See the project INSTALL.md.

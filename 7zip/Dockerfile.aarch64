@@ -1,7 +1,7 @@
-FROM ghcr.io/linuxserver/baseimage-ubuntu:arm64v8-jammy
+FROM ghcr.io/linuxserver/baseimage-ubuntu:arm64v8-resolute
 
 # package versions
-ARG YACR_VERSION="9.14.2"
+ARG YACR_VERSION="10.1.0"
 
 # env variables
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -14,64 +14,55 @@ RUN \
     apt-get update && \
     apt-get install -y --no-install-recommends \
        build-essential \
-       desktop-file-utils \
+       cmake \
+       gcc \
        g++ \
        git \
-       libglu1-mesa-dev \
-       libpoppler-qt5-dev \
-       libpoppler-qt5-1 \
-       libqt5core5a \
-       libqt5gui5 \
-       libqt5multimedia5 \
-       libqt5network5 \
-       libqt5opengl5-dev \
-       libqt5qml5 \
-       libqt5quickcontrols2-5 \
-       libqt5script5 \
-       libqt5sql5-sqlite \
-       libqt5sql5 \
-       libqt5svg5-dev \
-       libsqlite3-dev \
        make \
-       p7zip-full \
-       qtchooser \
-       qtbase5-dev-tools \
-       qt5-qmake \
-       qtbase5-dev \
-       qtmultimedia5-dev \
-       qt5-image-formats-plugins \
-       qtdeclarative5-dev \
-       qtquickcontrols2-5-dev \
-       qtscript5-dev \
-       qttools5-dev-tools \
+       pkg-config \
+       qt6-base-dev \
+       qt6-base-dev-tools \
+       qt6-declarative-dev \
+       qt6-multimedia-dev \
+       qt6-svg-dev \
+       qt6-5compat-dev \
+       qt6-shadertools-dev \
+       qt6-tools-dev \
+       qt6-tools-dev-tools \
+       qt6-image-formats-plugins \
+       libqt6opengl6-dev \
+       libqt6sql6-sqlite \
+       libgl-dev \
+       libglu1-mesa-dev \
+       libbz2-dev \
+       liblzma-dev \
+       libsqlite3-dev \
+       zlib1g-dev \
        sqlite3 \
+       p7zip-full \
        unzip \
        wget && \
-# clone yacreaderlibraryserver
-    git clone -b master --single-branch https://github.com/YACReader/yacreader.git /src/git && \
-    cd /src/git && \
-    git checkout $YACR_VERSION && \
-# install 7zip libraries
-    cd /src/git/compressed_archive && \
-    wget "https://github.com/xthursdayx/yacreader-7z-deps/blob/main/7z2301-amd64-src.7z?raw=true" -O /src/git/compressed_archive/7z2301-amd64-src.7z && \
-    7z x /src/git/compressed_archive/7z2301-amd64-src.7z -o/src/git/compressed_archive/lib7zip && \
-    apt-get remove -y \
-        p7zip-full \
-        p7zip && \
-    cp /src/git/compressed_archive/lib7zip/debian/7zip/usr/bin/7z.7zip /usr/bin/7z && \
-    cp /src/git/compressed_archive/lib7zip/debian/7zip/usr/bin/7za.7zip /usr/bin/7za && \
-    cp /src/git/compressed_archive/lib7zip/debian/7zip/usr/bin/7zr.7zip /usr/bin/7zr && \
-    cp /src/git/compressed_archive/lib7zip/debian/7zip/usr/bin/7zz /usr/bin/7zz && \
-    cp -r /src/git/compressed_archive/lib7zip/debian/7zip/usr/lib/7zip /usr/lib/ && \
 # build yacreaderlibraryserver
-    cd /src/git/YACReaderLibraryServer && \
-    qmake PREFIX=/app CONFIG+="7zip server_standalone" YACReaderLibraryServer.pro && \
-    make  && \
-    make install && \
+# YACReader 10.x switched from qmake to CMake and requires Qt >= 6.4 for the
+# standalone server (Qt 6.7+ for the full GUI build). See the project INSTALL.md.
+# The 7zip decompression backend now downloads and compiles its own 7-Zip
+# source via CMake FetchContent, so no external 7z SDK/binaries are required.
+    git clone --depth 1 --branch $YACR_VERSION --single-branch \
+       https://github.com/YACReader/yacreader.git /src/git && \
+    cd /src/git && \
+    cmake -B build -S . \
+       -DCMAKE_BUILD_TYPE=Release \
+       -DCMAKE_INSTALL_PREFIX=/app \
+       -DBUILD_SERVER_STANDALONE=ON \
+       -DDECOMPRESSION_BACKEND=7zip \
+       -DPDF_BACKEND=no_pdf \
+       -DBUILD_TESTS=OFF && \
+    cmake --build build --parallel && \
+    cmake --install build && \
 # clean up
     cd / && \
     apt-get clean && \
-    apt-get purge -y build-essential g++ git make qt5-qmake unzip wget && \
+    apt-get purge -y build-essential cmake gcc g++ git make pkg-config unzip wget && \
     apt-get -y autoremove && \
     rm -rf \
        /src \
